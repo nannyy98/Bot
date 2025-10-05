@@ -11,7 +11,6 @@ import time
 import signal
 import sys
 import threading
-import health_check as _hc  # <--- добавить
 from database import DatabaseManager
 from handlers import MessageHandler
 from notifications import NotificationManager

@@ -77,6 +77,7 @@ except ImportError:
     MarketingAutomationManager = None
     logging.info("⚠️ MarketingAutomationManager не найден, автоматизация недоступна")
 
+
 class TelegramShopBot:
     def __init__(self, token):
         self.token = token
@@ -91,7 +92,10 @@ class TelegramShopBot:
         # Инициализация компонентов
         self.db = DatabaseManager()
         self.setup_admin_from_env()
-        self.backup_manager = DatabaseBackup(self.db.db_path)
+
+        # ИЗМЕНЕНО: DatabaseBackup берёт DATABASE_URL из окружения/конфига сам
+        self.backup_manager = DatabaseBackup()
+
         self.message_handler = MessageHandler(self, self.db)
         self.notification_manager = NotificationManager(self, self.db)
         self.payment_processor = PaymentProcessor()
@@ -112,7 +116,11 @@ class TelegramShopBot:
         
         # Связываем компоненты
         self.message_handler.notification_manager = self.notification_manager
-        self.admin_handler.notification_manager = self.notification_manager
+
+        # ИЗМЕНЕНО: защита от None
+        if self.admin_handler:
+            self.admin_handler.notification_manager = self.notification_manager
+
         self.message_handler.payment_processor = self.payment_processor
         
         # Инициализируем безопасность
@@ -680,7 +688,6 @@ class TelegramShopBot:
 def main():
     """Главная функция"""
     # Получение токена
-    # Способ 1: Через переменную окружения (рекомендуется)
     token = BOT_TOKEN
     if not token or token == 'YOUR_BOT_TOKEN':
         logging.info("❌ ОШИБКА: Не указан токен бота!")

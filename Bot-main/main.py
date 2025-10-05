@@ -1,6 +1,6 @@
-"""
+\"\"\"
 Главный файл запуска телеграм-бота интернет-магазина
-"""
+\"\"\"
 import logging
 
 import json
@@ -11,6 +11,7 @@ import time
 import signal
 import sys
 import threading
+import health_check as _hc  # для запуска HTTP health-эндпойнта
 from database import DatabaseManager
 from handlers import MessageHandler
 from notifications import NotificationManager
@@ -89,19 +90,28 @@ class TelegramShopBot:
         self.data_cache = {}
         self.last_data_reload = time.time()
         
-        # Инициализация компонентов
+        # Инициализация компонентов (сначала база)
         self.db = DatabaseManager()
         self.setup_admin_from_env()
 
-        # ИЗМЕНЕНО: DatabaseBackup берёт DATABASE_URL из окружения/конфига сам
+        # Бэкап (работает на SQLite, для Postgres no-op)
         self.backup_manager = DatabaseBackup()
 
         self.message_handler = MessageHandler(self, self.db)
         self.notification_manager = NotificationManager(self, self.db)
         self.payment_processor = PaymentProcessor()
         
-        # Система мониторинга
+        # Система мониторинга + HTTP health endpoint для Render Web Service
         self.health_monitor = HealthMonitor(self.db, self)
+        try:
+            _hc.MONITORING_CONFIG["health_port"] = int(os.getenv("PORT", "8080"))
+        except Exception:
+            pass
+        try:
+            self.health_monitor.create_health_endpoint()
+            logger.info(f"Health HTTP endpoint started on port {_hc.MONITORING_CONFIG['health_port']}")
+        except Exception as e:
+            logger.warning(f"Health HTTP endpoint not started: {e}")
         
         # Инициализация админ-панели
         if AdminHandler:
@@ -116,11 +126,8 @@ class TelegramShopBot:
         
         # Связываем компоненты
         self.message_handler.notification_manager = self.notification_manager
-
-        # ИЗМЕНЕНО: защита от None
         if self.admin_handler:
             self.admin_handler.notification_manager = self.notification_manager
-
         self.message_handler.payment_processor = self.payment_processor
         
         # Инициализируем безопасность
@@ -371,10 +378,13 @@ class TelegramShopBot:
                         logger.info(f"✅ Админ уже существует: {admin_name}")
                 else:
                     # Создаем нового админа
-                    self.db.execute_query('''
+                    self.db.execute_query(
+                        """
                         INSERT INTO users (telegram_id, name, is_admin, language, created_at)
                         VALUES (?, ?, 1, 'ru', CURRENT_TIMESTAMP)
-                    ''', (admin_telegram_id, admin_name))
+                        """,
+                        (admin_telegram_id, admin_name)
+                    )
                     logger.info(f"✅ Новый админ создан: {admin_name} (ID: {admin_telegram_id})")
                     
             except ValueError:

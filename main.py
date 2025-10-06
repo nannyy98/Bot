@@ -699,6 +699,7 @@ def main():
     # Запуск бота
     try:
         bot = TelegramShopBot(token)
+        ensure_telegram_ready(token)
         bot.run()
     except Exception as e:
         logging.info(f"❌ Ошибка запуска бота: {e}")
@@ -708,6 +709,35 @@ def main():
 
 
 # === Added by deploy-fix: build_application shim ===
+
+# === Added by deploy-fix: Telegram readiness helpers ===
+def ensure_telegram_ready(token: str):
+    """
+    Удаляет webhook (если был) и проверяет getMe.
+    Без этого при включённом вебхуке long-polling НЕ получает апдейты.
+    """
+    import json, urllib.request, urllib.error, logging
+    base = f"https://api.telegram.org/bot{token}"
+    # 1) deleteWebhook
+    try:
+        with urllib.request.urlopen(base + "/deleteWebhook?drop_pending_updates=true", timeout=10) as r:
+            data = r.read()
+        logging.info("🧹 deleteWebhook: ok")
+    except Exception as e:
+        logging.info(f"⚠️ deleteWebhook error: {e}")
+    # 2) getMe
+    try:
+        with urllib.request.urlopen(base + "/getMe", timeout=10) as r:
+            obj = json.loads(r.read().decode("utf-8", errors="ignore"))
+        if obj.get("ok"):
+            bot_info = obj.get("result", {})
+            logging.info(f"🤖 getMe: @{bot_info.get('username')} (id={bot_info.get('id')})")
+        else:
+            logging.info(f"⚠️ getMe not ok: {obj}")
+    except Exception as e:
+        logging.info(f"⚠️ getMe error: {e}")
+# === End helpers ===
+
 def build_application():
     """
     PTB v20 совместимый shim: возвращает объект с .run_polling(),
@@ -724,6 +754,7 @@ def build_application():
             raise RuntimeError("BOT_TOKEN не задан")
 
         bot = TelegramShopBot(token)
+        ensure_telegram_ready(token)
 
         class _AppShim:
             def run_polling(self, drop_pending_updates=True):

@@ -703,6 +703,49 @@ def main():
     except Exception as e:
         logging.info(f"❌ Ошибка запуска бота: {e}")
 
+
+
+
+
+# === Added by deploy-fix: build_application shim ===
+def build_application():
+    """
+    PTB v20 совместимый shim: возвращает объект с .run_polling(),
+    который запускает существующий TelegramShopBot(token).
+    """
+    import os, logging
+    try:
+        try:
+            from config import BOT_TOKEN as _CFG_TOKEN
+        except Exception:
+            _CFG_TOKEN = None
+        token = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN") or _CFG_TOKEN
+        if not token or token == "YOUR_BOT_TOKEN":
+            raise RuntimeError("BOT_TOKEN не задан")
+
+        bot = TelegramShopBot(token)
+
+        class _AppShim:
+            def run_polling(self, drop_pending_updates=True):
+                bot.run()
+        return _AppShim()
+    except Exception as e:
+        logging.info(f"❌ Ошибка build_application(): {e}", exc_info=True)
+        raise
+# === End shim ===
+
 if __name__ == "__main__":
-    application = build_application()  # твоя сборка Application
-    application.run_polling(drop_pending_updates=True)
+    # Предпочитаем PTB-совместимый запуск, но безопасно падаем обратно на main()
+    try:
+        application = build_application()
+        application.run_polling(drop_pending_updates=True)
+    except NameError:
+        # build_application ещё не определён — старый стиль
+        main()
+    except Exception as e:
+        # Если непредвиденная ошибка — попробуем старый стиль на всякий
+        try:
+            main()
+        except Exception:
+            import logging
+            logging.info(f"❌ Критическая ошибка запуска бота: {e}", exc_info=True)

@@ -1,6 +1,6 @@
-
 """
 Главный файл запуска телеграм-бота интернет-магазина
+(версия с совместимыми логами: все сообщения через f-строки)
 """
 from __future__ import annotations
 import logging
@@ -34,37 +34,37 @@ try:
     from admin import AdminHandler
 except ImportError:
     AdminHandler = None
-    logging.info("⚠️ AdminHandler не найден, админ-функции недоступны")
+    logger.info("⚠️ AdminHandler не найден, админ-функции недоступны")
 
 try:
     from security import SecurityManager
 except ImportError:
     SecurityManager = None
-    logging.info("⚠️ SecurityManager не найден, функции безопасности ограничены")
+    logger.info("⚠️ SecurityManager не найден, функции безопасности ограничены")
 
 try:
     from webhooks import WebhookManager
 except ImportError:
     WebhookManager = None
-    logging.info("⚠️ WebhookManager не найден, webhook'и недоступны")
+    logger.info("⚠️ WebhookManager не найден, webhook'и недоступны")
 
 try:
     from analytics import AnalyticsManager
 except ImportError:
     AnalyticsManager = None
-    logging.info("⚠️ AnalyticsManager не найден, аналитика недоступна")
+    logger.info("⚠️ AnalyticsManager не найден, аналитика недоступна")
 
 try:
     from financial_reports import FinancialReportsManager
 except ImportError:
     FinancialReportsManager = None
-    logging.info("⚠️ FinancialReportsManager не найден, финансовые отчеты недоступны")
+    logger.info("⚠️ FinancialReportsManager не найден, финансовые отчеты недоступны")
 
 try:
     from inventory_management import InventoryManager
 except ImportError:
     InventoryManager = None
-    logging.info("⚠️ InventoryManager не найден, управление складом недоступно")
+    logger.info("⚠️ InventoryManager не найден, управление складом недоступно")
 
 try:
     from ai_features import AIRecommendationEngine, ChatbotSupport, SmartNotificationAI
@@ -72,13 +72,13 @@ except ImportError:
     AIRecommendationEngine = None
     ChatbotSupport = None
     SmartNotificationAI = None
-    logging.info("⚠️ AI модули не найдены, AI функции недоступны")
+    logger.info("⚠️ AI модули не найдены, AI функции недоступны")
 
 try:
     from marketing_automation import MarketingAutomationManager
 except ImportError:
     MarketingAutomationManager = None
-    logging.info("⚠️ MarketingAutomationManager не найден, автоматизация недоступна")
+    logger.info("⚠️ MarketingAutomationManager не найден, автоматизация недоступна")
 
 
 class TelegramShopBot:
@@ -111,9 +111,9 @@ class TelegramShopBot:
             pass
         try:
             self.health_monitor.create_health_endpoint()
-            logger.info("Health HTTP endpoint started on port %s", _hc.MONITORING_CONFIG.get("health_port"))
+            logger.info(f"Health HTTP endpoint started on port {_hc.MONITORING_CONFIG.get('health_port')}")
         except Exception as e:
-            logger.warning("Health HTTP endpoint not started: %s", e)
+            logger.warning(f"Health HTTP endpoint not started: {e}")
 
         # Админ-панель
         if AdminHandler:
@@ -190,7 +190,7 @@ class TelegramShopBot:
             self.scheduled_posts.bot = self
             logger.info("✅ Система автоматических постов инициализирована")
         except Exception as e:
-            logger.warning("⚠️ Автопосты недоступны: %s", e)
+            logger.warning(f"⚠️ Автопосты недоступны: {e}")
             self.scheduled_posts = None
 
         # Проверки склада
@@ -217,7 +217,7 @@ class TelegramShopBot:
                     self.check_for_data_updates()
                     time.sleep(5)
                 except Exception as e:
-                    logger.error("Ошибка синхронизации данных: %s", e)
+                    logger.error(f"Ошибка синхронизации данных: {e}")
                     time.sleep(30)
 
         threading.Thread(target=sync_worker, daemon=True).start()
@@ -235,7 +235,7 @@ class TelegramShopBot:
                 os.remove(force_reload_flag)
                 logger.info("✅ Принудительная перезагрузка завершена")
             except Exception as e:
-                logger.error("Ошибка принудительной перезагрузки: %s", e)
+                logger.error(f"Ошибка принудительной перезагрузки: {e}")
                 try:
                     os.remove(force_reload_flag)
                 except Exception:
@@ -255,7 +255,7 @@ class TelegramShopBot:
                     os.remove(update_flag_file)
                     logger.info("✅ Данные обновлены в боте")
             except Exception as e:
-                logger.error("Ошибка обработки флага обновления: %s", e)
+                logger.error(f"Ошибка обработки флага обновления: {e}")
                 try:
                     os.remove(update_flag_file)
                 except Exception:
@@ -272,7 +272,7 @@ class TelegramShopBot:
                 self.setup_default_automation_rules()
             logger.info("✅ Полная перезагрузка данных завершена")
         except Exception as e:
-            logger.error("Ошибка полной перезагрузки: %s", e)
+            logger.error(f"Ошибка полной перезагрузки: {e}")
 
     def reload_data_cache(self):
         """Перезагрузка кэша данных"""
@@ -286,7 +286,7 @@ class TelegramShopBot:
                 self.scheduled_posts.load_schedule_from_database()
             self.notify_admins_about_update()
         except Exception as e:
-            logger.error("Ошибка перезагрузки данных: %s", e)
+            logger.error(f"Ошибка перезагрузки данных: {e}")
 
     def notify_admins_about_update(self):
         """Уведомление админов об обновлении данных"""
@@ -303,9 +303,9 @@ class TelegramShopBot:
                 try:
                     self.send_message(admin[0], update_message)
                 except Exception as e:
-                    logger.error("Ошибка уведомления админа %s: %s", admin[0], e)
+                    logger.error(f"Ошибка уведомления админа {admin[0]}: {e}")
         except Exception as e:
-            logger.error("Ошибка уведомления админов: %s", e)
+            logger.error(f"Ошибка уведомления админов: {e}")
 
     def trigger_data_update(self):
         """Принудительное обновление данных"""
@@ -315,7 +315,7 @@ class TelegramShopBot:
                 f.write(str(time.time()))
             logger.info("Флаг обновления данных установлен")
         except Exception as e:
-            logger.error("Ошибка установки флага обновления: %s", e)
+            logger.error(f"Ошибка установки флага обновления: {e}")
 
     def setup_admin_from_env(self):
         """Настройка админа из переменных окружения"""
@@ -337,24 +337,24 @@ class TelegramShopBot:
                             'UPDATE users SET is_admin = 1 WHERE telegram_id = ?',
                             (admin_telegram_id,)
                         )
-                        logger.info("✅ Права админа обновлены для %s", admin_name)
+                        logger.info(f"✅ Права админа обновлены для {admin_name}")
                     else:
-                        logger.info("✅ Админ уже существует: %s", admin_name)
+                        logger.info(f"✅ Админ уже существует: {admin_name}")
                 else:
                     self.db.execute_query("""
                         INSERT INTO users (telegram_id, name, is_admin, language, created_at)
                         VALUES (?, ?, 1, 'ru', CURRENT_TIMESTAMP)
                     """, (admin_telegram_id, admin_name))
-                    logger.info("✅ Новый админ создан: %s (ID: %s)", admin_name, admin_telegram_id)
+                    logger.info(f"✅ Новый админ создан: {admin_name} (ID: {admin_telegram_id})")
 
             except ValueError:
-                logger.error("❌ Неверный ADMIN_TELEGRAM_ID: %s", admin_telegram_id)
+                logger.error(f"❌ Неверный ADMIN_TELEGRAM_ID: {admin_telegram_id}")
             except Exception as e:
-                logger.error("❌ Ошибка создания админа: %s", e)
+                logger.error(f"❌ Ошибка создания админа: {e}")
 
     def signal_handler(self, signum, frame):
         """Обработчик сигналов для graceful shutdown"""
-        logger.info("Получен сигнал %s, завершение работы...", signum)
+        logger.info(f"Получен сигнал {signum}, завершение работы...")
         self.running = False
         sys.exit(0)
 
@@ -371,7 +371,7 @@ class TelegramShopBot:
                         self.inventory_manager.process_automatic_reorders()
                     time.sleep(21600)  # 6 часов
                 except Exception as e:
-                    logging.info("Ошибка проверки склада: %s", e)
+                    logger.info(f"Ошибка проверки склада: {e}")
                     time.sleep(3600)  # Повтор через час при ошибке
 
         threading.Thread(target=inventory_worker, daemon=True).start()
@@ -405,7 +405,7 @@ class TelegramShopBot:
                 [{"type": "send_personalized_offer", "target_segment": "champions"}]
             )
         except Exception as e:
-            logging.info("⚠️ Ошибка настройки автоматизации: %s", e)
+            logger.info(f"⚠️ Ошибка настройки автоматизации: {e}")
 
     def send_message(self, chat_id, text, reply_markup=None):
         """Отправка сообщения"""
@@ -425,10 +425,10 @@ class TelegramShopBot:
             with urllib.request.urlopen(req) as response:
                 result = json.loads(response.read().decode('utf-8'))
                 if not result.get('ok'):
-                    logging.info("Ошибка отправки сообщения: %s", result)
+                    logger.info(f"Ошибка отправки сообщения: {result}")
                 return result
         except Exception as e:
-            logging.info("Ошибка отправки сообщения: %s", e)
+            logger.info(f"Ошибка отправки сообщения: {e}")
             return None
 
     def send_photo(self, chat_id, photo_url, caption="", reply_markup=None):
@@ -450,10 +450,10 @@ class TelegramShopBot:
             with urllib.request.urlopen(req) as response:
                 result = json.loads(response.read().decode('utf-8'))
                 if not result.get('ok'):
-                    logging.info("Ошибка отправки фото: %s", result)
+                    logger.info(f"Ошибка отправки фото: {result}")
                 return result
         except Exception as e:
-            logging.info("Ошибка отправки фото: %s", e)
+            logger.info(f"Ошибка отправки фото: {e}")
             return None
 
     def get_updates(self):
@@ -466,12 +466,12 @@ class TelegramShopBot:
                 raw = response.read().decode('utf-8')
                 data = json.loads(raw)
                 if not data.get('ok'):
-                    logger.warning("getUpdates NOT OK: %s", raw[:300])
+                    logger.warning(f"getUpdates NOT OK: {raw[:300]}")
                 else:
-                    logger.info("getUpdates ok, найдено %d апдейтов", len(data.get('result', [])))
+                    logger.info(f"getUpdates ok, найдено {len(data.get('result', []))} апдейтов")
                 return data
         except Exception as e:
-            logging.info("Ошибка получения обновлений: %s", e)
+            logger.info(f"Ошибка получения обновлений: {e}")
             return None
 
     def run(self):
@@ -500,7 +500,7 @@ class TelegramShopBot:
                                 chat_id = message['chat']['id']
 
                                 # Логируем сообщение
-                                logger.info("Сообщение от %s: %s...", telegram_id, (text or "")[:50])
+                                logger.info(f"Сообщение от {telegram_id}: {(text or '')[:50]}...")
 
                                 # Мини-ответ на /start (страховка на случай, если MessageHandler молчит)
                                 if isinstance(text, str) and text.strip().lower() in ('/start', 'start'):
@@ -556,7 +556,7 @@ class TelegramShopBot:
                                     self.message_handler.handle_callback_query(callback_query)
 
                         except Exception as e:
-                            logger.error("Ошибка обработки обновления: %s", e, exc_info=True)
+                            logger.error(f"Ошибка обработки обновления: {e}")
                             self.health_monitor.increment_errors(str(e))
                 else:
                     logger.warning("getUpdates returned empty/invalid — backing off")
@@ -567,7 +567,7 @@ class TelegramShopBot:
         except KeyboardInterrupt:
             logger.info("🛑 Бот остановлен пользователем")
         except Exception as e:
-            logger.critical("Критическая ошибка: %s", e, exc_info=True)
+            logger.critical(f"Критическая ошибка: {e}")
         finally:
             logger.info("🔄 Закрытие соединений...")
             self.running = False
@@ -656,7 +656,7 @@ class TelegramShopBot:
                 result = json.loads(response.read().decode('utf-8'))
                 return result.get('ok', False)
         except Exception as e:
-            logging.info("Ошибка редактирования клавиатуры: %s", e)
+            logger.info(f"Ошибка редактирования клавиатуры: {e}")
             return False
 
 
@@ -698,9 +698,9 @@ def _validate_token(token: str):
         if not data.get("ok"):
             raise RuntimeError(f"getMe not ok: {data}")
         username = data.get("result", {}).get("username")
-        logger.info("getMe OK: бот @%s", username)
+        logger.info(f"getMe OK: бот @{username}")
     except Exception as e:
-        logger.critical("❌ Проверка токена не прошла: %s", e, exc_info=True)
+        logger.critical(f"❌ Проверка токена не прошла: {e}")
         sys.exit(3)
 
 # =============================== Запуск бота =====================================
@@ -711,8 +711,8 @@ def main():
     try:
         bot = TelegramShopBot(token)
         bot.run()
-    except Exception:
-        logger.exception("❌ Ошибка запуска бота")
+    except Exception as e:
+        logger.exception(f"❌ Ошибка запуска бота: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

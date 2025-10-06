@@ -704,4 +704,5 @@ def main():
         logging.info(f"❌ Ошибка запуска бота: {e}")
 
 if __name__ == "__main__":
-    main()
+    application = build_application()  # твоя сборка Application
+    application.run_polling(drop_pending_updates=True)

@@ -25,6 +25,29 @@ from database_backup import DatabaseBackup
 from scheduled_posts import ScheduledPostsManager
 from config import BOT_CONFIG, BOT_TOKEN
 
+
+def ensure_telegram_ready(token: str):
+    """
+    Удаляет webhook (если был) и проверяет getMe (для логов).
+    """
+    import json, urllib.request, urllib.error, logging
+    base = f"https://api.telegram.org/bot{token}"
+    try:
+        with urllib.request.urlopen(base + "/deleteWebhook?drop_pending_updates=true", timeout=10) as r:
+            r.read()
+        logging.info("🧹 deleteWebhook: ok")
+    except Exception as e:
+        logging.info(f"⚠️ deleteWebhook error: {e}")
+    try:
+        with urllib.request.urlopen(base + "/getMe", timeout=10) as r:
+            obj = json.loads(r.read().decode("utf-8", errors="ignore"))
+        if obj.get("ok"):
+            me = obj.get("result", {})
+            logging.info(f"🤖 getMe: @{me.get('username')} (id={me.get('id')})")
+    except Exception as e:
+        logging.info(f"⚠️ getMe error: {e}")
+
+
 # Импорты с обработкой ошибок
 from datetime import datetime
 try:
@@ -700,103 +723,19 @@ def main():
     try:
         bot = TelegramShopBot(token)
         ensure_telegram_ready(token)
+        # уведомим админа
         try:
-            from config import BOT_CONFIG
             _aid = BOT_CONFIG.get('admin_telegram_id')
             if _aid:
                 try:
                     _aid = int(_aid)
-                    bot.send_message(_aid, '🤖 Бот запущен и готов принимать сообщения')
+                    bot.send_message(_aid, "🤖 Бот запущен и готов принимать сообщения")
                 except Exception as _e:
-                    import logging
-                    logging.info(f'⚠️ Не удалось отправить стартовое сообщение админу: {_e}')
+                    logging.info(f"⚠️ Не удалось отправить стартовое сообщение админу: {_e}")
         except Exception as _e:
-            import logging
-            logging.info(f'⚠️ Ошибка при уведомлении админа: {_e}')
-
-
-
-
-
-# === Added by deploy-fix: build_application shim ===
-
-# === Added by deploy-fix: Telegram readiness helpers ===
-def ensure_telegram_ready(token: str):
-    """
-    Удаляет webhook (если был) и проверяет getMe.
-    Без этого при включённом вебхуке long-polling НЕ получает апдейты.
-    """
-    import json, urllib.request, urllib.error, logging
-    base = f"https://api.telegram.org/bot{token}"
-    # 1) deleteWebhook
-    try:
-        with urllib.request.urlopen(base + "/deleteWebhook?drop_pending_updates=true", timeout=10) as r:
-            data = r.read()
-        logging.info("🧹 deleteWebhook: ok")
+            logging.info(f"⚠️ Ошибка при уведомлении админа: {_e}")
+        bot.run()
     except Exception as e:
-        logging.info(f"⚠️ deleteWebhook error: {e}")
-    # 2) getMe
-    try:
-        with urllib.request.urlopen(base + "/getMe", timeout=10) as r:
-            obj = json.loads(r.read().decode("utf-8", errors="ignore"))
-        if obj.get("ok"):
-            bot_info = obj.get("result", {})
-            logging.info(f"🤖 getMe: @{bot_info.get('username')} (id={bot_info.get('id')})")
-        else:
-            logging.info(f"⚠️ getMe not ok: {obj}")
-    except Exception as e:
-        logging.info(f"⚠️ getMe error: {e}")
-# === End helpers ===
-
-
-def build_application():
-    """
-    PTB v20 совместимый shim: возвращает объект с .run_polling(),
-    который запускает существующий TelegramShopBot(token).
-    """
-    import os, logging
-    # Получаем токен из окружения или конфигурации
-    try:
-        from config import BOT_TOKEN as _CFG_TOKEN
-    except Exception:
-        _CFG_TOKEN = None
-    token = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN") or _CFG_TOKEN
-
-    if not token or token == 'YOUR_BOT_TOKEN':
-        logging.info("❌ ОШИБКА: Не указан токен бота!")
-        logging.info("
-📋 Инструкция по настройке:")
-        logging.info("1. Создайте бота через @BotFather в Telegram")
-        logging.info("2. Получите токен бота")
-        logging.info("3. Выберите один из способов:")
-        logging.info("   СПОСОБ 1 (рекомендуется):")
-        logging.info("   export TELEGRAM_BOT_TOKEN='1234567890:ABCdefGHIjklMNOpqrsTUVwxyz'")
-        logging.info("   ")
-        logging.info("   СПОСОБ 2 (для тестирования):")
-        logging.info("   Раскомментируйте строку в main.py и вставьте токен")
-        logging.info("
-🔗 Подробная инструкция в README.md")
-        return
-
-    # Создаём объект бота и готовим Telegram API (сбрасываем webhook)
-    bot = TelegramShopBot(token)
-    ensure_telegram_ready(token)
-
-    # Пробуем уведомить админа о запуске
-    try:
-        from config import BOT_CONFIG
-        _aid = BOT_CONFIG.get('admin_telegram_id')
-        if _aid:
-            try:
-                _aid = int(_aid)
-                bot.send_message(_aid, '🤖 Бот запущен и готов принимать сообщения')
-            except Exception as _e:
-                logging.info(f'⚠️ Не удалось отправить стартовое сообщение админу: {_e}')
-    except Exception as _e:
-        logging.info(f'⚠️ Ошибка при уведомлении админа: {_e}')
-
-    class _AppShim:
-        def run_polling(self, drop_pending_updates=True):
-            bot.run()
-
-    return _AppShim()
+        logging.info(f"❌ Ошибка запуска бота: {e}")
+if __name__ == "__main__":
+    main()
